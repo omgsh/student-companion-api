@@ -1,4 +1,4 @@
-![Student Companion API](student-companion-api-social.png)
+![Student Companion API](https://raw.githubusercontent.com/omgsh/student-companion-api/main/student-companion-api-social.png)
 
 # Student Companion API
 
