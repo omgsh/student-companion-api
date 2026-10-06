@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Companion</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #e7e5e4;
+      --paper: #f6f3ee;
+      --card: #fffcf8;
+      --accent: #1f4d45;
+      --accent-press: #163830;
+      --danger: #9f1239;
+      --ok: #166534;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.5 "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+    }
+
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 64px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 28px;
+      margin-top: 28px;
+      align-items: start;
+    }
+
+    form, .notes {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    form { padding: 18px; }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      font: 600 0.78rem/1.2 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input, textarea, select {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px 12px;
+      border: 1px solid #d6d3d1;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: 1rem/1.4 "Iowan Old Style", Palatino, Georgia, serif;
+    }
+
+    textarea { min-height: 140px; resize: vertical; }
+
+    input:focus, textarea:focus, select:focus {
+      outline: 2px solid #99c4ba;
+      border-color: var(--accent);
+    }
+
+    button {
+      font: 600 0.95rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    .primary {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .primary:hover { background: var(--accent-press); }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toolbar label { flex: 1; margin: 0; }
+
+    .status {
+      min-height: 1.4em;
+      margin: 10px 0 0;
+      font: 0.9rem/1.4 ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .status.error { color: var(--danger); }
+    .status.ok { color: var(--ok); }
+
+    ul { list-style: none; margin: 0; padding: 8px; }
+
+    li {
+      padding: 14px;
+      border-radius: 10px;
+    }
+
+    li + li { border-top: 1px solid var(--line); }
+
+    .note-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .meta {
+      margin: 4px 0 8px;
+      color: var(--muted);
+      font: 0.82rem/1.3 ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .body { margin: 0; white-space: pre-wrap; }
+
+    .ghost {
+      border: 0;
+      background: transparent;
+      color: var(--danger);
+      padding: 4px 6px;
+    }
+
+    .empty {
+      margin: 0;
+      padding: 28px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Notes</h1>
+      <p>Write a note, then find it again by subject.</p>
+    </header>
+
+    <div class="layout">
+      <form id="new-note">
+        <label for="title">Title</label>
+        <input id="title" name="title" required placeholder="Photosynthesis">
+
+        <label for="subject">Subject</label>
+        <input id="subject" name="subject" required placeholder="Biology">
+
+        <label for="body">Note</label>
+        <textarea id="body" name="body" required placeholder="Plants turn sunlight into energy."></textarea>
+
+        <button class="primary" type="submit">Save note</button>
+        <p id="status" class="status" role="status"></p>
+      </form>
+
+      <section class="notes">
+        <div class="toolbar">
+          <label for="filter">Show
+            <select id="filter">
+              <option value="">All subjects</option>
+            </select>
+          </label>
+        </div>
+        <ul id="list"></ul>
+        <p id="empty" class="empty" hidden>No notes yet. Save one with the form.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const form = document.querySelector("#new-note");
+    const list = document.querySelector("#list");
+    const empty = document.querySelector("#empty");
+    const filter = document.querySelector("#filter");
+    const status = document.querySelector("#status");
+    let notes = [];
+
+    function setStatus(message, kind) {
+      status.textContent = message;
+      status.className = "status" + (kind ? " " + kind : "");
+    }
+
+    function formatWhen(value) {
+      return new Date(value).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    function fillSubjects() {
+      const current = filter.value;
+      const subjects = [...new Set(notes.map((note) => note.subject))].sort();
+      filter.replaceChildren(new Option("All subjects", ""));
+      for (const subject of subjects) filter.add(new Option(subject, subject));
+      filter.value = subjects.includes(current) ? current : "";
+    }
+
+    function render() {
+      const shown = filter.value
+        ? notes.filter((note) => note.subject === filter.value)
+        : notes;
+
+      list.replaceChildren();
+      empty.hidden = shown.length > 0;
+      empty.textContent = notes.length
+        ? "No notes in that subject."
+        : "No notes yet. Save one with the form.";
+
+      for (const note of shown) {
+        const item = document.createElement("li");
+        item.innerHTML = `
+          <div class="note-top">
+            <h2></h2>
+            <button class="ghost" type="button">Delete</button>
+          </div>
+          <p class="meta"></p>
+          <p class="body"></p>
+        `;
+        item.querySelector("h2").textContent = note.title;
+        item.querySelector(".meta").textContent = note.subject + " · " + formatWhen(note.created_at);
+        item.querySelector(".body").textContent = note.body;
+        const button = item.querySelector("button");
+        button.addEventListener("click", () => remove(note, button));
+        list.append(item);
+      }
+    }
+
+    async function load() {
+      const response = await fetch("/notes");
+      if (!response.ok) {
+        setStatus("Could not load notes.", "error");
+        return;
+      }
+      notes = await response.json();
+      notes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      fillSubjects();
+      render();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setStatus("Saving…");
+      const response = await fetch("/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title.value.trim(),
+          subject: form.subject.value.trim(),
+          body: form.body.value.trim(),
+        }),
+      });
+      if (!response.ok) {
+        setStatus("Could not save that note. Check that every field is filled in.", "error");
+        return;
+      }
+      form.reset();
+      form.title.focus();
+      setStatus("Saved.", "ok");
+      await load();
+    });
+
+    filter.addEventListener("change", render);
+
+    async function remove(note, button) {
+      // First click asks on the note itself. Second click deletes it.
+      if (button.dataset.confirm !== "yes") {
+        button.dataset.confirm = "yes";
+        button.textContent = "Confirm";
+        return;
+      }
+      const response = await fetch("/notes/" + note.id, { method: "DELETE" });
+      if (!response.ok) {
+        setStatus("Could not delete that note.", "error");
+        return;
+      }
+      setStatus("Deleted.", "ok");
+      await load();
+    }
+
+    load();
+  </script>
+</body>
+</html>
